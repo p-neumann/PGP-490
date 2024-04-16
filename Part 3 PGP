@@ -1,0 +1,138 @@
+import sys
+import hashlib
+import pickle
+import zipfile
+from zipfile import ZipFile
+import os
+from Crypto.Cipher import AES
+from Crypto import Random
+from Crypto.Hash import SHA256
+import gnupg
+import gnupg
+from pgpy import PGPKey, PGPUID, PGPMessage
+from pgpy.constants import PubKeyAlgorithm, KeyFlags, CompressionAlgorithm, SymmetricKeyAlgorithm, HashAlgorithm
+from pgpy.errors import PGPError
+import pgpy
+from warnings import filterwarnings
+filterwarnings("ignore")
+
+from zipfile import ZipFile
+
+def read_object(file_name):
+    with open(file_name, "rb") as f:  
+        obj= pickle.load(f) 
+    return obj
+
+
+
+def read_key(file_name):
+    key1, _ = pgpy.PGPKey.from_file(file_name)
+    return key1
+
+
+def file_uncompress(zip_file):
+    with ZipFile(zip_file, 'r') as f:
+
+#extract in current directory
+        f.extractall()
+
+def save_object(file_name,obj):
+    with open(file_name, "wb") as f:  
+        pickle.dump(obj, f)
+
+def pgp_decrypt_file(input_file,output_file,private_key_file):
+    prv_key=read_key(private_key_file)
+    encrypted_f_t_e=read_object(input_file)
+    
+    decrypted_f_t_e = prv_key.decrypt(encrypted_f_t_e)
+    save_object(output_file,decrypted_f_t_e.message)
+
+def getKey(password):
+	hasher = SHA256.new(password.encode('utf-8'))
+	return hasher.digest()
+
+def verify_signature(public_key, message, signature):
+    try:
+        # Verify the signature
+        verified = public_key.verify(message, signature)
+
+        return verified
+    except PGPError as e:
+        print("Error:", e)
+        return None
+
+
+def decrypt(key, filename):
+	chunksize = 64*1024
+	outputFile = 'original_'+filename[5:]
+    
+	with open(filename, 'rb') as infile:
+		filesize = int(infile.read(16))
+		IV = infile.read(16)
+
+		decryptor= AES.new(key, AES.MODE_CBC, IV)
+
+		with open(outputFile, 'wb') as outfile:
+			while True:
+				chunk = infile.read(chunksize)
+
+				if len(chunk) == 0:
+					break
+
+				outfile.write(decryptor.decrypt(chunk))
+
+			outfile.truncate(filesize)
+
+
+######MAIN
+######Step 2-1
+
+print('Step 2-1: Using Bob private key to decrypt session key:\n')
+file_name=input("Enter the name of a file containing Bob private key:")
+pgp_decrypt_file('AES_Key_Encrypted','decrpted_AES_key',file_name)
+obj=read_object('decrpted_AES_key')
+
+#########Step 2-2
+print('Step 2-2: Using session key to dycrpt compressed file:\n')
+
+S_key=getKey(obj)
+decrypt(S_key, '(enc)zip_file.zip')
+print('Zipped file decrypted: ',"original_zip_file.zip\n")
+
+
+######Step 2-3
+print('Step 2-3: Unzip to get both the message and signed hash value:\n')
+file_uncompress("original_zip_file.zip")
+print("uncompression done!\n")
+
+
+#####Step 2-4
+print('Step 2-4: Using Alice pub key to decrypt the hash value:\n')
+file_name=input("Enter the file name containing Alice public key:")
+Alice_pub_key=read_key(file_name)
+msg=read_object('msg_file')
+sig=read_object('sig_file')
+flag=verify_signature(Alice_pub_key, msg, sig)
+if flag==None:
+    print("Signature not verified!\n")
+else:
+    print("Signature verified!\n")
+
+
+##########Step 2-5
+print('Step 2-5: Computing the hash value for the message received:\n')
+
+sha256 = hashlib.sha256()
+sha256.update(msg.encode())
+new_hash_message=sha256.hexdigest()
+print("This is the calculated hash for the received message: ", new_hash_message)
+
+print('Step 2-6: Comparing the Alice hash with the new one :\n')
+old_hash_message=read_object("original_hash_file")
+
+if old_hash_message==new_hash_message:
+    print("Both hashes are the same!\n")
+else:
+    print("The new hash is different!\n")
+org_message=read_object("msg_file")
+print("The original message is: ", org_message)
