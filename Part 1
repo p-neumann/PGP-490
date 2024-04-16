@@ -1,0 +1,146 @@
+import sys
+import hashlib
+import pickle
+import zipfile
+from zipfile import ZipFile
+import os
+from Crypto.Cipher import AES
+from Crypto import Random
+from Crypto.Hash import SHA256
+import gnupg
+from pgpy import PGPKey, PGPUID, PGPMessage
+from pgpy.constants import PubKeyAlgorithm, KeyFlags, CompressionAlgorithm, SymmetricKeyAlgorithm, HashAlgorithm
+from pgpy.errors import PGPError
+import pgpy
+from warnings import filterwarnings
+from zipfile import ZipFile
+
+#This function gets some files and puts them in a ZIP file
+def file_compress(inp_file_names, out_zip_file):
+
+# Select the compression mode ZIP_DEFLATED for compression
+# or zipfile.ZIP_STORED to just store the file
+    compression = zipfile.ZIP_DEFLATED
+    print(f" *** Input File name passed for zipping - {inp_file_names}")
+
+# create the zip file first parameter path/name, second mode
+    print(f' *** out_zip_file is - {out_zip_file}')
+    zf = zipfile.ZipFile(out_zip_file, mode="w")
+
+    try:
+        for file_to_write in inp_file_names:
+# Add file to the zip file
+# first parameter file to zip, second filename in zip
+            print(f' *** Processing file {file_to_write}')
+            zf.write(file_to_write, file_to_write, compress_type=compression)
+
+    except FileNotFoundError as e:
+        print(f' *** Exception occurred during zip process - {e}')
+    finally:
+# Don't forget to close the file!
+        zf.close()
+    print("Compressed!")
+
+
+def read_key(file_name):
+    key1, _ = pgpy.PGPKey.from_file(file_name)
+    return key1
+
+def pgp_encrypt_message(msg,PUBLIC_KEY_FILE):
+    filterwarnings("ignore")
+    pub_key, _ = pgpy.PGPKey.from_file(str(PUBLIC_KEY_FILE))
+    
+    # Encrypt string
+    txt_msg = pgpy.PGPMessage.new(msg)
+    encrypted_txt_msg = pub_key.encrypt(txt_msg)
+    return encrypted_txt_msg
+
+
+def encrypt(key, filename):
+	chunksize = 64*1024
+	outputFile = "(enc)"+filename
+	filesize = str(os.path.getsize(filename)).zfill(16)
+	IV = Random.new().read(16)
+
+	encryptor = AES.new(key, AES.MODE_CBC, IV)
+
+	with open(filename, 'rb') as infile:#rb means read in binary
+		with open(outputFile, 'wb') as outfile:#wb means write in the binary mode
+			outfile.write(filesize.encode('utf-8'))
+			outfile.write(IV)
+
+			while True:
+				chunk = infile.read(chunksize)
+
+				if len(chunk) == 0:
+					break
+				elif len(chunk)%16 != 0:
+					chunk += b' '*(16-(len(chunk)%16))
+
+				outfile.write(encryptor.encrypt(chunk))
+def sign_message(private_key, message):
+    try:
+        # Sign the message with the specified hash algorithm
+        signature = private_key.sign(message, hash_alg=HashAlgorithm.SHA256)
+
+        return signature
+    except PGPError as e:
+        print("Error:", e)
+        return None
+
+def save_object(file_name,obj):
+    with open(file_name, "wb") as f:  
+        pickle.dump(obj, f)
+
+
+def getKey(password):
+	hasher = SHA256.new(password.encode('utf-8'))
+	return hasher.digest()
+
+  
+
+
+#########THIS IS THE MAIN
+
+message=input('Enter the message:')
+
+#########STEP 1
+print('\\Step 1: Hash the message:\n')
+sha256 = hashlib.sha256()
+sha256.update(message.encode())
+hash_message=sha256.hexdigest()
+save_object("original_hash_file",hash_message)
+print("This is the hash value:\n",hash_message)
+    
+###########STEP 2
+print('\nStep 2: Sign the hash value:\n')
+file_name=input("Enter the file name containing sender private key: ")
+prev_key_Alice=read_key(file_name)
+signature=sign_message(prev_key_Alice, hash_message)
+print("\nThis is the signature:\n",signature)
+save_object('sig_file',signature)
+
+###########STEP 3
+print('\nStep 3: Compress the signed hash and the message:\n')
+save_object('msg_file',message)
+inp_file_names=['sig_file','msg_file']
+file_compress(inp_file_names, 'zip_file.zip')
+
+###########STEP 4
+print('\nStep 4: Use a session key to encrypt Ziped output:\n')
+AES_Key=getKey('My_password')
+encrypt(AES_Key, 'zip_file.zip')
+save_object('AES_Key',AES_Key)
+print('\nDone!Check the (enc)zip_file.zip')
+
+###########STEP 5
+print('\nStep 5: Using Bob pub key to encrypt the session key:\n')
+public_key_Bob=input("Enter the file name containing the recipient public key: ")
+enc_AES_key=pgp_encrypt_message('My_password',public_key_Bob)
+save_object('AES_Key_Encrypted',enc_AES_key)
+print('\nDone! Session key has been encrpted using recipient puplic key\n')
+
+###########STEP 6
+print('\nStep 6: Now, we should send two files as encrypted message and encrypted session key\n')
+print("Encrypted compressed message file is ","(enc)zip_file.zip")
+print("Encrypted session key is:","AES_Key_Encrypted")
