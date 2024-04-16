@@ -1,0 +1,36 @@
+from pgpy import PGPKey, PGPUID, PGPMessage
+from pgpy.constants import PubKeyAlgorithm, KeyFlags, CompressionAlgorithm, SymmetricKeyAlgorithm, HashAlgorithm
+from pgpy.errors import PGPError
+import pgpy
+
+
+def generate_key_pair():
+    try:
+        # Generate a new RSA key pair
+        key = PGPKey.new(PubKeyAlgorithm.RSAEncryptOrSign, 2048)
+        # Set preferred algorithms
+        # Add a User ID to the key
+        uid = PGPUID.new("User", email='user@example.com')
+        key.add_uid(uid, usage={KeyFlags.Sign, KeyFlags.EncryptCommunications, KeyFlags.EncryptStorage},
+            hashes=[HashAlgorithm.SHA256, HashAlgorithm.SHA384, HashAlgorithm.SHA512, HashAlgorithm.SHA224],
+            ciphers=[SymmetricKeyAlgorithm.AES256, SymmetricKeyAlgorithm.AES192, SymmetricKeyAlgorithm.AES128],
+            compression=[CompressionAlgorithm.ZLIB, CompressionAlgorithm.BZ2, CompressionAlgorithm.ZIP, CompressionAlgorithm.Uncompressed])
+
+        return key, key.pubkey
+    except PGPError as e:
+        print("Error:", e)
+        return None, None    
+
+
+def save_key(file_name_private,file_name_public,key):
+    with open(file_name_private, "wb") as f:  
+        f.write(bytes(key))
+        
+    with open(file_name_public, "wb") as f:  
+        f.write(bytes(key.pubkey))
+
+priv_key,pub_key=generate_key_pair()
+name=input("Enter a name to save private and public keys: ")
+private_key="private_key_"+name
+public_key="Public_key_"+name
+save_key(private_key,public_key,priv_key)
