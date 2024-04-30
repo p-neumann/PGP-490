@@ -1,0 +1,32 @@
+How Does PGP Encryption Work?
+This project consists of three script files that focus on generating keys encrypting data and decrypting messages to facilitate communication. To ensure the
+security and authenticity of exchanged messages, between the sender (Alice) and the recipient (Bob), this project combines hashing, signature (compression)
+symmetric, and AES encryption algorithms.
+The complexity of encryption mathematics can be daunting ( Feel free to explore if interested). Let's stick to the basics here;
+Firstly, PGP creates a random session key by running the script file (Gen_key.py). It generates public keys for both Alice and Bob. It's important to note that
+this process needs to be repeated once for creating a key for Alice and once for Bob. The session key is a number that is used only once.
+Subsequently, this session key is encrypted using the key of the intended message recipient. A public key is tied to an individual's identity allowing anyone to
+use it when sending them a message.
+The second file focuses on the encryption phase (Part 1. py). When you execute the file it will ask you to input a message. The message gets hashed.
+Displays the hash value. Additionally, you are prompted to provide the file name that holds the sender's key. At this point, the sender's goal is to sign the message. Once signed the script compresses both the signed hash and message. Requests Bobs key (recipient) to encrypt the session key.
+This might seem like a strange way to do things. Why would we encrypt the encryption key itself? Well, the answer is pretty simple. Public key cryptography is much, much slower than symmetric encryption (where both the sender and recipient have the same key). Using symmetric encryption requires, though, that a
+
+sender share the encryption key with the recipient in plain text, and this would be insecure. So by encrypting the symmetric key using the (asymmetric) public-
+key system, PGP combines the efficiency of symmetric encryption with the security of public-key cryptography
+
+Following that the sender sends an encrypted message file (enc)zip_file.zip along, with the encrypted session key to the recipient. The recipient can decrypt it
+using the sender's key. Then proceed to decrypt the actual message by running the file (Part 2. py).
+Please note, under the decryption file, by the time you decrypt, you must compare the hash code generated on the encrypted side and the one generated on
+the decrypted side and compare the two if it was altered while transmitting.
+
+
+Reference
+
+https://ioflood.com/blog/python-
+unzip/#:~:text=To%20unzip%20files%20in%20Python,handle%20zip%20files%20in%20Python.&text=In%20this%20example%
+
+encryption-decryption/%20For
+https://onboardbase.com/blog/aes-encryption-decryption/
+https://pneumannsecurity.blogspot.com/2020/09/pgp-encryption.html
+https://www.varonis.com/blog/pgp-encryption
+https://pneumannsecurity.blogspot.com/2020/06/crypto-key-and-key-exchange.html
