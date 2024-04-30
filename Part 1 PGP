@@ -14,6 +14,25 @@ from pgpy.errors import PGPError
 import pgpy
 from warnings import filterwarnings
 from zipfile import ZipFile
+import string
+import random
+
+def create_password():
+    length = 200
+    characterList = ""
+    characterList += string.ascii_letters
+    characterList += string.digits
+    characterList += string.punctuation
+    password = []
+    for i in range(length):
+    # Picking a random character from our 
+    # character list
+        randomchar = random.choice(characterList)
+	# appending a random character to password
+        password.append(randomchar)
+
+    # printing password as a string
+    return  "".join(password)
 
 #This function gets some files and puts them in a ZIP file
 def file_compress(inp_file_names, out_zip_file):
@@ -128,7 +147,9 @@ file_compress(inp_file_names, 'zip_file.zip')
 
 ###########STEP 4
 print('\nStep 4: Use a session key to encrypt Ziped output:\n')
-AES_Key=getKey('My_password')
+password=create_password()
+#save_object('AES_key_pass',password)
+AES_Key=getKey(password)
 encrypt(AES_Key, 'zip_file.zip')
 save_object('AES_Key',AES_Key)
 print('\nDone!Check the (enc)zip_file.zip')
@@ -136,9 +157,14 @@ print('\nDone!Check the (enc)zip_file.zip')
 ###########STEP 5
 print('\nStep 5: Using Bob pub key to encrypt the session key:\n')
 public_key_Bob=input("Enter the file name containing the recipient public key: ")
-enc_AES_key=pgp_encrypt_message('My_password',public_key_Bob)
+enc_AES_key=pgp_encrypt_message(password,public_key_Bob)
 save_object('AES_Key_Encrypted',enc_AES_key)
 print('\nDone! Session key has been encrpted using recipient puplic key\n')
+
+###########STEP 6
+print('\nStep 6: Now, we should send two files as encrypted message and encrypted session key\n')
+print("Encrypted compressed message file is ","(enc)zip_file.zip")
+print("Encrypted session key is:","AES_Key_Encrypted")
 
 ###########STEP 6
 print('\nStep 6: Now, we should send two files as encrypted message and encrypted session key\n')
