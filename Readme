@@ -2,11 +2,13 @@ How Does PGP Encryption Work?
 This project consists of three script files that focus on generating keys encrypting data and decrypting messages to facilitate communication. To ensure the
 security and authenticity of exchanged messages, between the sender (Alice) and the recipient (Bob), this project combines hashing, signature (compression)
 symmetric, and AES encryption algorithms.
+
 The complexity of encryption mathematics can be daunting ( Feel free to explore if interested). Let's stick to the basics here;
 Firstly, PGP creates a random session key by running the script file (Gen_key.py). It generates public keys for both Alice and Bob. It's important to note that
 this process needs to be repeated once for creating a key for Alice and once for Bob. The session key is a number that is used only once.
 Subsequently, this session key is encrypted using the key of the intended message recipient. A public key is tied to an individual's identity allowing anyone to
 use it when sending them a message.
+
 The second file focuses on the encryption phase (Part 1. py). When you execute the file it will ask you to input a message. The message gets hashed.
 Displays the hash value. Additionally, you are prompted to provide the file name that holds the sender's key. At this point, the sender's goal is to sign the message. Once signed the script compresses both the signed hash and message. Requests Bobs key (recipient) to encrypt the session key.
 This might seem like a strange way to do things. Why would we encrypt the encryption key itself? Well, the answer is pretty simple. Public key cryptography is much, much slower than symmetric encryption (where both the sender and recipient have the same key). Using symmetric encryption requires, though, that a
